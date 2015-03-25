@@ -14,5 +14,7 @@ func TestOpen(t *testing.T) {
 
 	file, err := Open(path)
 	assert.Success(err, t)
-	defer file.Close()
+
+	err = file.Close()
+	assert.Success(err, t)
 }
