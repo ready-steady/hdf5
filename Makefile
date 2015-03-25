@@ -10,6 +10,10 @@ install: $(syso)
 	go install
 
 $(syso): $(install)/lib/libhdf5.a
+	mkdir -p $(build)/$@
+	cd $(build)/$@ && ar x $(install)/lib/libhdf5.a
+	cd $(build)/$@ && ar x $(install)/lib/libhdf5_hl.a
+	ld -r -o $@ $(build)/$@/*.o
 	cp $< $@
 
 $(install)/lib/libhdf5.a: $(build)/Makefile
@@ -22,7 +26,7 @@ $(build)/configure:
 	git submodule update --init
 
 clean:
+	rm -rf $(syso) $(build)/$(syso) $(install)
 	$(MAKE) -C $(build) clean
-	rm -rf $(install) $(syso)
 
 .PHONY: all install clean
