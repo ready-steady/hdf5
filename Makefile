@@ -15,10 +15,10 @@ $(syso): $(install)/lib/libhdf5.a
 	cd $(build)/$@ && ar x $(install)/lib/libhdf5_hl.a
 	ld -r -o $@ $(build)/$@/*.o
 
-$(install)/lib/libhdf5.a: $(build)/Makefile
+$(install)/lib/libhdf5.a: $(build)/config.log
 	$(MAKE) -C $(build) install
 
-$(build)/Makefile: $(build)/configure
+$(build)/config.log: $(build)/configure
 	cd $(build) && ./configure --prefix=$(install)
 
 $(build)/configure:
