@@ -14,7 +14,6 @@ $(syso): $(install)/lib/libhdf5.a
 	cd $(build)/$@ && ar x $(install)/lib/libhdf5.a
 	cd $(build)/$@ && ar x $(install)/lib/libhdf5_hl.a
 	ld -r -o $@ $(build)/$@/*.o
-	cp $< $@
 
 $(install)/lib/libhdf5.a: $(build)/Makefile
 	$(MAKE) -C $(build) install
