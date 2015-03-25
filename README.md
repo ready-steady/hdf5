@@ -1,4 +1,4 @@
-# HDF5
+# HDF5 [![Build Status][travis-img]][travis-url]
 
 The package provides a reader and writer of [HDF5][1] files.
 
@@ -33,3 +33,5 @@ make install
 [1]: https://en.wikipedia.org/wiki/Hierarchical_Data_Format
 
 [doc]: http://godoc.org/github.com/ready-steady/hdf5
+[travis-img]: https://travis-ci.org/ready-steady/hdf5.svg?branch=master
+[travis-url]: https://travis-ci.org/ready-steady/hdf5

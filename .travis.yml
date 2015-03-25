@@ -1,0 +1,10 @@
+language: go
+
+install:
+  - go get -d -t ./...
+  - make install
+  - go test -v ./...
+
+notifications:
+  email:
+    on_success: never
