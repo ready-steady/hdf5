@@ -21,6 +21,7 @@ cd $GOPATH/src/github.com/ready-steady/hdf5
 Install the package:
 
 ```bash
+git submodule update --init
 make install
 ```
 
