@@ -4,7 +4,7 @@
 package hdf5
 
 // #cgo CFLAGS: -Ihdf5/install/include
-// #cgo LDFLAGS: -lz
+// #cgo LDFLAGS: -lm -lz
 //
 // #include <stdlib.h>
 // #include <string.h>
