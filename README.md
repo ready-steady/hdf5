@@ -21,7 +21,6 @@ cd $GOPATH/src/github.com/ready-steady/hdf5
 Install the package:
 
 ```bash
-git submodule update --init
 make install
 ```
 
@@ -31,6 +30,6 @@ make install
 2. Implement your idea.
 3. Create a pull request.
 
-[1]: http://en.wikipedia.org/wiki/Hierarchical_Data_Format
+[1]: https://en.wikipedia.org/wiki/Hierarchical_Data_Format
 
 [doc]: http://godoc.org/github.com/ready-steady/hdf5
