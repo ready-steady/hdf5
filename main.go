@@ -3,14 +3,15 @@
 // https://en.wikipedia.org/wiki/Hierarchical_Data_Format
 package hdf5
 
-// #cgo CFLAGS: -Ihdf5/install/include
-// #cgo LDFLAGS: -ldl -lm -lz
-//
-// #include <stdlib.h>
-// #include <string.h>
-//
-// #include <hdf5.h>
-// #include <hdf5_hl.h>
+/*
+#cgo CFLAGS: -Ihdf5/install/include
+#cgo LDFLAGS: -ldl -lm -lz
+
+#include <stdlib.h>
+#include <hdf5.h>
+
+uint _H5F_ACC_RDWR() { return H5F_ACC_RDWR; }
+*/
 import "C"
 
 import (
@@ -20,26 +21,21 @@ import (
 
 // File represents a file.
 type File struct {
-	id C.hid_t
+	fid C.hid_t
 }
 
 // Open opens a file for reading and writing.
 func Open(path string) (*File, error) {
-	const (
-		// https://github.com/copies/hdf5/blob/master/src/H5Fpublic.h#L46
-		F_ACC_RDWR = 0x0001
-	)
-
 	cpath := C.CString(path)
 	defer C.free(unsafe.Pointer(cpath))
 
-	id := C.H5Fopen(cpath, F_ACC_RDWR, C.H5P_DEFAULT)
-	if id < 0 {
+	fid := C.H5Fopen(cpath, C._H5F_ACC_RDWR(), C.H5P_DEFAULT)
+	if fid < 0 {
 		return nil, errors.New("failed to open the file")
 	}
 
 	file := &File{
-		id: id,
+		fid: fid,
 	}
 
 	return file, nil
@@ -47,7 +43,7 @@ func Open(path string) (*File, error) {
 
 // Close closes the file.
 func (f *File) Close() error {
-	if err := C.H5Fclose(f.id); err != 0 {
+	if err := C.H5Fclose(f.fid); err != 0 {
 		return errors.New("failed to close the file")
 	}
 	return nil

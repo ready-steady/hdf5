@@ -1,6 +1,7 @@
 package hdf5
 
 import (
+	"fmt"
 	"os"
 	"testing"
 
@@ -8,7 +9,7 @@ import (
 	"github.com/ready-steady/fixture"
 )
 
-func TestOpen(t *testing.T) {
+func TestOpenClose(t *testing.T) {
 	path := fixture.MakeFile()
 	defer os.Remove(path)
 
@@ -17,4 +18,16 @@ func TestOpen(t *testing.T) {
 
 	err = file.Close()
 	assert.Success(err, t)
+}
+
+func TestPut(t *testing.T) {
+	path := fixture.MakeFile()
+	defer os.Remove(path)
+
+	file, _ := Open(path)
+	defer file.Close()
+
+	for i, o := range fixtureObjects {
+		assert.Success(file.Put(fmt.Sprintf("%c", 'A'+i), o), t)
+	}
 }
