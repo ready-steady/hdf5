@@ -12,9 +12,25 @@ type object struct {
 	data unsafe.Pointer
 	sid  C.hid_t
 	tid  C.hid_t
+
+	inner []*object
+}
+
+func newObject() *object {
+	return &object{
+		sid: -1,
+		tid: -1,
+	}
 }
 
 func (o *object) free() {
-	_ = C.H5Tclose(o.tid)
-	_ = C.H5Sclose(o.sid)
+	for i := range o.inner {
+		o.inner[i].free()
+	}
+	if o.tid >= 0 {
+		_ = C.H5Tclose(o.tid)
+	}
+	if o.sid >= 0 {
+		_ = C.H5Sclose(o.sid)
+	}
 }

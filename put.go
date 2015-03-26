@@ -33,7 +33,9 @@ func (f *File) createObject(value reflect.Value, dimensions ...uint) (*object, e
 }
 
 func (f *File) createArray(value reflect.Value, dimensions ...uint) (*object, error) {
-	data := unsafe.Pointer(value.Pointer())
+	object := newObject()
+
+	object.data = unsafe.Pointer(value.Pointer())
 
 	bid, ok := kindTypeMapping[value.Type().Elem().Kind()]
 	if !ok {
@@ -49,82 +51,79 @@ func (f *File) createArray(value reflect.Value, dimensions ...uint) (*object, er
 		length *= dimensions[i]
 	}
 	if length != uint(value.Len()) {
+		object.free()
 		return nil, errors.New("the dimensions do not match")
 	}
 
 	one := C.hsize_t(1)
 
-	sid := C.H5Screate_simple(1, (*C.hsize_t)(unsafe.Pointer(&one)), nil)
-	if sid < 0 {
+	object.sid = C.H5Screate_simple(1, (*C.hsize_t)(unsafe.Pointer(&one)), nil)
+	if object.sid < 0 {
+		object.free()
 		return nil, errors.New("cannot create a data space")
 	}
 
-	tid := C.H5Tarray_create2(bid, C.uint(len(dimensions)),
+	object.tid = C.H5Tarray_create2(bid, C.uint(len(dimensions)),
 		(*C.hsize_t)(unsafe.Pointer(&dimensions[0])))
-	if tid < 0 {
-		_ = C.H5Sclose(sid)
+	if object.tid < 0 {
+		object.free()
 		return nil, errors.New("cannot create a data type")
-	}
-
-	object := &object{
-		data: data,
-		sid:  sid,
-		tid:  tid,
 	}
 
 	return object, nil
 }
 
 func (f *File) createScalar(value reflect.Value) (*object, error) {
+	object := newObject()
+
 	pointer := reflect.New(value.Type())
 	reflect.Indirect(pointer).Set(value)
 
-	data := unsafe.Pointer(pointer.Pointer())
+	object.data = unsafe.Pointer(pointer.Pointer())
 
 	bid, ok := kindTypeMapping[value.Kind()]
 	if !ok {
+		object.free()
 		return nil, errors.New("encountered an unsupported data type")
 	}
 
 	one := C.hsize_t(1)
 
-	sid := C.H5Screate_simple(1, (*C.hsize_t)(unsafe.Pointer(&one)), nil)
-	if sid < 0 {
+	object.sid = C.H5Screate_simple(1, (*C.hsize_t)(unsafe.Pointer(&one)), nil)
+	if object.sid < 0 {
+		object.free()
 		return nil, errors.New("cannot create a data space")
 	}
 
-	tid := C.H5Tarray_create2(bid, 1, (*C.hsize_t)(unsafe.Pointer(&one)))
-	if tid < 0 {
-		_ = C.H5Sclose(sid)
+	object.tid = C.H5Tarray_create2(bid, 1, (*C.hsize_t)(unsafe.Pointer(&one)))
+	if object.tid < 0 {
+		object.free()
 		return nil, errors.New("cannot create a data type")
-	}
-
-	object := &object{
-		data: data,
-		sid:  sid,
-		tid:  tid,
 	}
 
 	return object, nil
 }
 
 func (f *File) createStruct(value reflect.Value) (*object, error) {
+	object := newObject()
+
 	typo := value.Type()
 	pointer := reflect.New(typo)
 	reflect.Indirect(pointer).Set(value)
 
-	data := unsafe.Pointer(pointer.Pointer())
+	object.data = unsafe.Pointer(pointer.Pointer())
 
 	one := C.hsize_t(1)
 
-	sid := C.H5Screate_simple(1, (*C.hsize_t)(unsafe.Pointer(&one)), nil)
-	if sid < 0 {
+	object.sid = C.H5Screate_simple(1, (*C.hsize_t)(unsafe.Pointer(&one)), nil)
+	if object.sid < 0 {
+		object.free()
 		return nil, errors.New("cannot create a data space")
 	}
 
-	tid := C.H5Tcreate(C.H5T_COMPOUND, C.size_t(typo.Size()))
-	if tid < 0 {
-		_ = C.H5Sclose(sid)
+	object.tid = C.H5Tcreate(C.H5T_COMPOUND, C.size_t(typo.Size()))
+	if object.tid < 0 {
+		object.free()
 		return nil, errors.New("cannot create a compound data type")
 	}
 
@@ -133,27 +132,20 @@ func (f *File) createStruct(value reflect.Value) (*object, error) {
 	for i := 0; i < count; i++ {
 		field := typo.Field(i)
 
-		object, err := f.createObject(value.Field(i))
+		o, err := f.createObject(value.Field(i))
 		if err != nil {
-			_ = C.H5Tclose(tid)
-			_ = C.H5Sclose(sid)
+			object.free()
 			return nil, err
 		}
+		object.inner = append(object.inner, o)
 
 		cname := C.CString(field.Name)
 		defer C.free(unsafe.Pointer(cname))
 
-		if C.H5Tinsert(tid, cname, C.size_t(field.Offset), object.tid) != 0 {
-			_ = C.H5Tclose(tid)
-			_ = C.H5Sclose(sid)
+		if C.H5Tinsert(object.tid, cname, C.size_t(field.Offset), o.tid) < 0 {
+			object.free()
 			return nil, errors.New("cannot construct a compound data type")
 		}
-	}
-
-	object := &object{
-		data: data,
-		sid:  sid,
-		tid:  tid,
 	}
 
 	return object, nil
