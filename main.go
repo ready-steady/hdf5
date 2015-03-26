@@ -10,6 +10,7 @@ package hdf5
 #include <stdlib.h>
 #include <hdf5.h>
 
+uint _H5F_ACC_EXCL() { return H5F_ACC_EXCL; }
 uint _H5F_ACC_RDWR() { return H5F_ACC_RDWR; }
 */
 import "C"
@@ -24,7 +25,24 @@ type File struct {
 	fid C.hid_t
 }
 
-// Open opens a file for reading and writing.
+// Create creates a new file.
+func Create(path string) (*File, error) {
+	cpath := C.CString(path)
+	defer C.free(unsafe.Pointer(cpath))
+
+	fid := C.H5Fcreate(cpath, C._H5F_ACC_EXCL(), C.H5P_DEFAULT, C.H5P_DEFAULT)
+	if fid < 0 {
+		return nil, errors.New("failed to create a file")
+	}
+
+	file := &File{
+		fid: fid,
+	}
+
+	return file, nil
+}
+
+// Open opens an existing file.
 func Open(path string) (*File, error) {
 	cpath := C.CString(path)
 	defer C.free(unsafe.Pointer(cpath))
