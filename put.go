@@ -12,27 +12,41 @@ import (
 
 // Put writes an object into the file.
 func (f *File) Put(name string, something interface{}, dimensions ...uint) error {
-	object, err := f.createObject(reflect.ValueOf(something), dimensions...)
+	object, err := createObject(reflect.ValueOf(something), dimensions...)
 	if err != nil {
 		return err
 	}
 	defer object.free()
 
-	return f.putObject(name, object)
+	cname := C.CString(name)
+	defer C.free(unsafe.Pointer(cname))
+
+	did := C.H5Dcreate2(f.fid, cname, object.tid, object.sid,
+		C.H5P_DEFAULT, C.H5P_DEFAULT, C.H5P_DEFAULT)
+	if did < 0 {
+		return errors.New("cannot create a dataset")
+	}
+	defer C.H5Dclose(did)
+
+	if C.H5Dwrite(did, object.tid, C.H5S_ALL, C.H5S_ALL, C.H5P_DEFAULT, object.data) != 0 {
+		return errors.New("cannot write a dataset into the file")
+	}
+
+	return nil
 }
 
-func (f *File) createObject(value reflect.Value, dimensions ...uint) (*object, error) {
+func createObject(value reflect.Value, dimensions ...uint) (*object, error) {
 	switch value.Kind() {
 	case reflect.Slice:
-		return f.createArray(value, dimensions...)
+		return createArray(value, dimensions...)
 	case reflect.Struct:
-		return f.createStruct(value)
+		return createStruct(value)
 	default:
-		return f.createScalar(value)
+		return createScalar(value)
 	}
 }
 
-func (f *File) createArray(value reflect.Value, dimensions ...uint) (*object, error) {
+func createArray(value reflect.Value, dimensions ...uint) (*object, error) {
 	object := newObject()
 
 	object.data = unsafe.Pointer(value.Pointer())
@@ -73,7 +87,7 @@ func (f *File) createArray(value reflect.Value, dimensions ...uint) (*object, er
 	return object, nil
 }
 
-func (f *File) createScalar(value reflect.Value) (*object, error) {
+func createScalar(value reflect.Value) (*object, error) {
 	object := newObject()
 
 	pointer := reflect.New(value.Type())
@@ -104,7 +118,7 @@ func (f *File) createScalar(value reflect.Value) (*object, error) {
 	return object, nil
 }
 
-func (f *File) createStruct(value reflect.Value) (*object, error) {
+func createStruct(value reflect.Value) (*object, error) {
 	object := newObject()
 
 	typo := value.Type()
@@ -132,7 +146,7 @@ func (f *File) createStruct(value reflect.Value) (*object, error) {
 	for i := 0; i < count; i++ {
 		field := typo.Field(i)
 
-		o, err := f.createObject(value.Field(i))
+		o, err := createObject(value.Field(i))
 		if err != nil {
 			object.free()
 			return nil, err
@@ -149,22 +163,4 @@ func (f *File) createStruct(value reflect.Value) (*object, error) {
 	}
 
 	return object, nil
-}
-
-func (f *File) putObject(name string, object *object) error {
-	cname := C.CString(name)
-	defer C.free(unsafe.Pointer(cname))
-
-	did := C.H5Dcreate2(f.fid, cname, object.tid, object.sid,
-		C.H5P_DEFAULT, C.H5P_DEFAULT, C.H5P_DEFAULT)
-	if did < 0 {
-		return errors.New("cannot create a dataset")
-	}
-	defer C.H5Dclose(did)
-
-	if C.H5Dwrite(did, object.tid, C.H5S_ALL, C.H5S_ALL, C.H5P_DEFAULT, object.data) != 0 {
-		return errors.New("cannot write a dataset into the file")
-	}
-
-	return nil
 }
