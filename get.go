@@ -77,7 +77,7 @@ func finalizeObject(object *object, value reflect.Value) error {
 func initializeScalar(object *object, value reflect.Value) error {
 	bid, ok := kindTypeMapping[value.Kind()]
 	if !ok {
-		return errors.New("encountered an unsupported scalar datatype")
+		return errors.New("encountered an unsupported datatype")
 	}
 
 	if err := checkArrayType(object.tid, bid); err != nil {
@@ -96,6 +96,35 @@ func initializeScalar(object *object, value reflect.Value) error {
 }
 
 func initializeSlice(object *object, value reflect.Value) error {
+	typo := value.Type()
+
+	bid, ok := kindTypeMapping[typo.Elem().Kind()]
+	if !ok {
+		return errors.New("encountered an unsupported datatype")
+	}
+
+	if err := checkArrayType(object.tid, bid); err != nil {
+		return err
+	}
+
+	length, err := getArrayLength(object.tid)
+	if err != nil {
+		return err
+	}
+
+	buffer := reflect.MakeSlice(typo, int(length), int(length))
+	shadow := reflect.Indirect(reflect.New(typo))
+	shadow.Set(buffer)
+
+	src := (*reflect.SliceHeader)(unsafe.Pointer(shadow.UnsafeAddr()))
+	dst := (*reflect.SliceHeader)(unsafe.Pointer(value.UnsafeAddr()))
+
+	dst.Data, src.Data = src.Data, dst.Data
+	dst.Cap, src.Cap = src.Cap, dst.Cap
+	dst.Len, src.Len = src.Len, dst.Len
+
+	object.data = unsafe.Pointer(dst.Data)
+
 	return nil
 }
 
