@@ -22,8 +22,14 @@ func (f *File) Put(name string, something interface{}, dimensions ...uint) error
 	cname := C.CString(name)
 	defer C.free(unsafe.Pointer(cname))
 
-	did := C.H5Dcreate2(f.fid, cname, object.tid, object.sid,
-		C.H5P_DEFAULT, C.H5P_DEFAULT, C.H5P_DEFAULT)
+	one := C.hsize_t(1)
+	sid := C.H5Screate_simple(1, (*C.hsize_t)(unsafe.Pointer(&one)), nil)
+	if sid < 0 {
+		return errors.New("cannot create a data space")
+	}
+	defer C.H5Sclose(sid)
+
+	did := C.H5Dcreate2(f.fid, cname, object.tid, sid, C.H5P_DEFAULT, C.H5P_DEFAULT, C.H5P_DEFAULT)
 	if did < 0 {
 		return errors.New("cannot create a dataset")
 	}
@@ -81,14 +87,6 @@ func createArray(value reflect.Value, dimensions ...uint) (*object, error) {
 		dimensions[i], dimensions[nd-1-i] = dimensions[nd-1-i], dimensions[i]
 	}
 
-	one := C.hsize_t(1)
-
-	object.sid = C.H5Screate_simple(1, (*C.hsize_t)(unsafe.Pointer(&one)), nil)
-	if object.sid < 0 {
-		object.free()
-		return nil, errors.New("cannot create a data space")
-	}
-
 	object.tid = C.H5Tarray_create2(bid, C.uint(nd), (*C.hsize_t)(unsafe.Pointer(&dimensions[0])))
 	if object.tid < 0 {
 		object.free()
@@ -113,13 +111,6 @@ func createScalar(value reflect.Value) (*object, error) {
 	}
 
 	one := C.hsize_t(1)
-
-	object.sid = C.H5Screate_simple(1, (*C.hsize_t)(unsafe.Pointer(&one)), nil)
-	if object.sid < 0 {
-		object.free()
-		return nil, errors.New("cannot create a data space")
-	}
-
 	object.tid = C.H5Tarray_create2(bid, 1, (*C.hsize_t)(unsafe.Pointer(&one)))
 	if object.tid < 0 {
 		object.free()
@@ -144,14 +135,6 @@ func createStruct(value reflect.Value) (*object, error) {
 	pointer := reflect.New(typo)
 	reflect.Indirect(pointer).Set(value)
 	C.memcpy(object.data, unsafe.Pointer(pointer.Pointer()), size)
-
-	one := C.hsize_t(1)
-
-	object.sid = C.H5Screate_simple(1, (*C.hsize_t)(unsafe.Pointer(&one)), nil)
-	if object.sid < 0 {
-		object.free()
-		return nil, errors.New("cannot create a data space")
-	}
 
 	object.tid = C.H5Tcreate(C.H5T_COMPOUND, size)
 	if object.tid < 0 {
