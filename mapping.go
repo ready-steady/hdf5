@@ -3,8 +3,6 @@ package hdf5
 /*
 #include <hdf5.h>
 
-hid_t _H5T_NATIVE_INT() { return H5T_NATIVE_INT; }
-hid_t _H5T_NATIVE_UINT() { return H5T_NATIVE_UINT; }
 hid_t _H5T_NATIVE_INT8() { return H5T_NATIVE_INT8; }
 hid_t _H5T_NATIVE_UINT8() { return H5T_NATIVE_UINT8; }
 hid_t _H5T_NATIVE_INT16() { return H5T_NATIVE_INT16; }
