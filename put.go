@@ -1,6 +1,7 @@
 package hdf5
 
 // #include <stdlib.h>
+// #include <string.h>
 // #include <hdf5.h>
 import "C"
 
@@ -50,6 +51,7 @@ func createArray(value reflect.Value, dimensions ...uint) (*object, error) {
 	object := newObject()
 
 	object.data = unsafe.Pointer(value.Pointer())
+	object.flag |= flagReference
 
 	bid, ok := kindTypeMapping[value.Type().Elem().Kind()]
 	if !ok {
@@ -122,10 +124,17 @@ func createStruct(value reflect.Value) (*object, error) {
 	object := newObject()
 
 	typo := value.Type()
+	size := C.size_t(typo.Size())
+
+	object.data = C.malloc(size)
+	if object.data == nil {
+		return nil, errors.New("cannot allocate memory")
+	}
+	object.flag |= flagOwned
+
 	pointer := reflect.New(typo)
 	reflect.Indirect(pointer).Set(value)
-
-	object.data = unsafe.Pointer(pointer.Pointer())
+	C.memcpy(object.data, unsafe.Pointer(pointer.Pointer()), size)
 
 	one := C.hsize_t(1)
 
@@ -135,7 +144,7 @@ func createStruct(value reflect.Value) (*object, error) {
 		return nil, errors.New("cannot create a data space")
 	}
 
-	object.tid = C.H5Tcreate(C.H5T_COMPOUND, C.size_t(typo.Size()))
+	object.tid = C.H5Tcreate(C.H5T_COMPOUND, size)
 	if object.tid < 0 {
 		object.free()
 		return nil, errors.New("cannot create a compound data type")
@@ -151,12 +160,30 @@ func createStruct(value reflect.Value) (*object, error) {
 			object.free()
 			return nil, err
 		}
-		object.inner = append(object.inner, o)
+		object.deps = append(object.deps, o)
+
+		tid := o.tid
+		offset := C.size_t(field.Offset)
+
+		if o.flag&flagReference != 0 {
+			tid = C.H5Tvlen_create(tid)
+			if tid < 0 {
+				object.free()
+				return nil, errors.New("cannnot create a variable-length data type")
+			}
+
+			h := (*C.hvl_t)(unsafe.Pointer(uintptr(object.data) + uintptr(offset)))
+			h.len, h.p = 1, o.data
+
+			o = newObject()
+			o.tid = tid
+			object.deps = append(object.deps, o)
+		}
 
 		cname := C.CString(field.Name)
 		defer C.free(unsafe.Pointer(cname))
 
-		if C.H5Tinsert(object.tid, cname, C.size_t(field.Offset), o.tid) < 0 {
+		if C.H5Tinsert(object.tid, cname, offset, tid) < 0 {
 			object.free()
 			return nil, errors.New("cannot construct a compound data type")
 		}
