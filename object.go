@@ -31,7 +31,7 @@ func (o *object) free() {
 		o.deps[i].free()
 	}
 	if o.tid >= 0 {
-		_ = C.H5Tclose(o.tid)
+		C.H5Tclose(o.tid)
 	}
 	if o.data != nil && o.flag&flagOwned != 0 {
 		C.free(o.data)
