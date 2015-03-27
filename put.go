@@ -58,8 +58,10 @@ func createArray(value reflect.Value, dimensions ...uint) (*object, error) {
 		return nil, errors.New("encountered an unsupported data type")
 	}
 
-	if len(dimensions) == 0 {
-		dimensions = []uint{uint(value.Len())}
+	nd := len(dimensions)
+
+	if nd == 0 {
+		nd, dimensions = 1, []uint{uint(value.Len())}
 	}
 
 	length := uint(1)
@@ -71,6 +73,14 @@ func createArray(value reflect.Value, dimensions ...uint) (*object, error) {
 		return nil, errors.New("the dimensions do not match")
 	}
 
+	// NOTE: The C version of HDF5 adheres to the row-major order. This
+	// packages, however, favors the column-major order.
+	//
+	// http://www.hdfgroup.org/HDF5/doc/UG/UG_frame12Dataspaces.html
+	for i := 0; i < nd/2; i++ {
+		dimensions[i], dimensions[nd-1-i] = dimensions[nd-1-i], dimensions[i]
+	}
+
 	one := C.hsize_t(1)
 
 	object.sid = C.H5Screate_simple(1, (*C.hsize_t)(unsafe.Pointer(&one)), nil)
@@ -79,8 +89,7 @@ func createArray(value reflect.Value, dimensions ...uint) (*object, error) {
 		return nil, errors.New("cannot create a data space")
 	}
 
-	object.tid = C.H5Tarray_create2(bid, C.uint(len(dimensions)),
-		(*C.hsize_t)(unsafe.Pointer(&dimensions[0])))
+	object.tid = C.H5Tarray_create2(bid, C.uint(nd), (*C.hsize_t)(unsafe.Pointer(&dimensions[0])))
 	if object.tid < 0 {
 		object.free()
 		return nil, errors.New("cannot create a data type")
