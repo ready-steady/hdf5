@@ -65,12 +65,10 @@ func initializeObject(object *object, value reflect.Value) error {
 
 func finalizeObject(object *object, value reflect.Value) error {
 	switch value.Kind() {
-	case reflect.Slice:
-		return finalizeSlice(object, value)
 	case reflect.Struct:
 		return finalizeStruct(object, value)
 	default:
-		return finalizeScalar(object, value)
+		return nil
 	}
 }
 
@@ -129,14 +127,6 @@ func initializeSlice(object *object, value reflect.Value) error {
 }
 
 func initializeStruct(object *object, value reflect.Value) error {
-	return nil
-}
-
-func finalizeScalar(object *object, value reflect.Value) error {
-	return nil
-}
-
-func finalizeSlice(object *object, value reflect.Value) error {
 	return nil
 }
 
