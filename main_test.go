@@ -24,7 +24,7 @@ func TestPut(t *testing.T) {
 	path := fixture.MakeFile()
 	defer os.Remove(path)
 
-	file, _ := Open(path)
+	file, _ := Create(path)
 	defer file.Close()
 
 	for i, o := range fixtureObjects {
