@@ -26,6 +26,12 @@ func newObject() *object {
 	}
 }
 
+func (o *object) new() *object {
+	object := newObject()
+	o.deps = append(o.deps, object)
+	return object
+}
+
 func (o *object) free() {
 	for i := range o.deps {
 		o.deps[i].free()

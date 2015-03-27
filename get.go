@@ -122,28 +122,102 @@ func initializeSlice(object *object, value reflect.Value) error {
 	dst.Len, src.Len = src.Len, dst.Len
 
 	object.data = unsafe.Pointer(dst.Data)
+	object.flag |= flagReference
 
 	return nil
 }
 
 func initializeStruct(object *object, value reflect.Value) error {
+	if tid := C.H5Tget_class(object.tid); tid < 0 {
+		return errors.New("cannot get a data class")
+	} else if tid != C.H5T_COMPOUND {
+		return errors.New("expected a compound datatype")
+	}
+
+	size := C.H5Tget_size(object.tid)
+	if size < 0 {
+		return errors.New("cannot get the size of a compound datatype")
+	}
+
+	object.data = C.malloc(size)
+	if object.data == nil {
+		return errors.New("cannot allocate memory")
+	}
+	object.flag |= flagOwned
+
 	return nil
 }
 
 func finalizeStruct(object *object, value reflect.Value) error {
+	typo := value.Type()
+	count := typo.NumField()
+
+	for i := 0; i < count; i++ {
+		field := typo.Field(i)
+
+		cname := C.CString(field.Name)
+		defer C.free(unsafe.Pointer(cname))
+
+		j := C.H5Tget_member_index(object.tid, cname)
+		if j < 0 {
+			continue
+		}
+
+		o := object.new()
+
+		o.tid = C.H5Tget_member_type(object.tid, C.uint(j))
+		if o.tid < 0 {
+			return errors.New("cannot get the datatype of a field")
+		}
+
+		if cid := C.H5Tget_class(o.tid); cid < 0 {
+			return errors.New("cannot get the data class of a field")
+		} else if cid == C.H5T_VLEN {
+			if tid := C.H5Tget_super(o.tid); tid < 0 { // Close?
+				return errors.New("cannot get the base type of a field")
+			} else {
+				o = object.new()
+				o.tid = tid
+			}
+			o.flag |= flagReference
+		}
+
+		if err := initializeObject(o, value.Field(i)); err != nil {
+			return err
+		}
+
+		size := C.H5Tget_size(o.tid)
+		if size < 0 {
+			return errors.New("cannot get a size")
+		}
+
+		offset := C.H5Tget_member_offset(object.tid, C.uint(j))
+
+		address := uintptr(object.data) + uintptr(offset)
+		if o.flag&flagReference != 0 {
+			h := (*C.hvl_t)(unsafe.Pointer(address))
+			if h.len != 1 {
+				return errors.New("expected a variable-length datatype with a single element")
+			}
+			address = uintptr(h.p)
+		}
+
+		C.memcpy(o.data, unsafe.Pointer(address), size)
+	}
+
 	return nil
 }
 
 func checkArrayType(tid C.hid_t, bid C.hid_t) error {
-	if id := C.H5Tget_class(tid); id < 0 {
-		return errors.New("cannot get the data class of a datatype")
-	} else if id != C.H5T_ARRAY {
-		return errors.New("expected an array")
+	if cid := C.H5Tget_class(tid); cid < 0 {
+		return errors.New("cannot get a data class")
+	} else if cid != C.H5T_ARRAY {
+		return errors.New("expected an array datatype")
 	}
 
-	if id := C.H5Tget_super(tid); id < 0 {
+	if tid := C.H5Tget_super(tid); tid < 0 { // Close?
 		return errors.New("cannot get the base type of a datatype")
-	} else if C.H5Tequal(bid, id) == 0 {
+	} else if C.H5Tequal(bid, tid) == 0 {
 		return errors.New("the types do not match")
 	}
 

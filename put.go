@@ -167,9 +167,8 @@ func createStruct(value reflect.Value) (*object, error) {
 			h := (*C.hvl_t)(unsafe.Pointer(uintptr(object.data) + uintptr(offset)))
 			h.len, h.p = 1, o.data
 
-			o = newObject()
+			o = object.new()
 			o.tid = tid
-			object.deps = append(object.deps, o)
 		}
 
 		cname := C.CString(field.Name)
