@@ -12,7 +12,6 @@ install: $(syso)
 $(syso): $(install)/lib/libhdf5.a
 	mkdir -p $(build)/$@
 	cd $(build)/$@ && ar x $(install)/lib/libhdf5.a
-	cd $(build)/$@ && ar x $(install)/lib/libhdf5_hl.a
 	ld -r -o $@ $(build)/$@/*.o
 
 $(install)/lib/libhdf5.a: $(build)/config.log
@@ -25,7 +24,7 @@ $(build)/configure:
 	git submodule update --init
 
 clean:
-	rm -rf $(syso) $(build)/$(syso) $(install)
-	$(MAKE) -C $(build) clean
+	rm -rf $(syso)
+	cd $(build) && (git checkout . && git clean -df)
 
 .PHONY: all install clean
