@@ -68,3 +68,55 @@ func TestPutGetWithDimensions(t *testing.T) {
 
 	assert.Equal(data1, data2, t)
 }
+
+func ExampleFile() {
+	put := func(path string) {
+		file, _ := Create(path)
+		defer file.Close()
+
+		A := 42
+		file.Put("A", A)
+
+		B := []float64{1, 2, 3}
+		file.Put("B", B)
+
+		C := struct {
+			D int
+			E []float64
+		}{
+			D: 42,
+			E: []float64{1, 2, 3},
+		}
+		file.Put("C", C)
+	}
+
+	get := func(path string) {
+		file, _ := Open(path)
+		defer file.Close()
+
+		A := 0
+		file.Get("A", &A)
+		fmt.Println(A)
+
+		B := []float64{}
+		file.Get("B", &B)
+		fmt.Println(B)
+
+		C := struct {
+			D int
+			E []float64
+		}{}
+		file.Get("C", &C)
+		fmt.Println(C)
+	}
+
+	path := fixture.MakeFile()
+	defer os.Remove(path)
+
+	put(path)
+	get(path)
+	// Output:
+	// 42
+	// [1 2 3]
+	// {42 [1 2 3]}
+}
