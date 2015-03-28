@@ -11,7 +11,7 @@ import (
 	"unsafe"
 )
 
-// Put writes an object into the file.
+// Put writes data into the file.
 func (f *File) Put(name string, something interface{}, dimensions ...uint) error {
 	object := newObject()
 	defer object.free()
