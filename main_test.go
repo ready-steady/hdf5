@@ -69,6 +69,18 @@ func TestPutGetWithDimensions(t *testing.T) {
 	assert.Equal(data1, data2, t)
 }
 
+func TestPutTwice(t *testing.T) {
+	path := fixture.MakeFile()
+	defer os.Remove(path)
+
+	file, err := Create(path)
+	assert.Success(err, t)
+	defer file.Close()
+
+	assert.Success(file.Put("A", 42), t)
+	assert.Success(file.Put("A", 42), t)
+}
+
 func ExampleFile() {
 	put := func(path string) {
 		file, _ := Create(path)

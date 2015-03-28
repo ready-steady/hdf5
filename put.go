@@ -30,6 +30,12 @@ func (f *File) Put(name string, something interface{}, dimensions ...uint) error
 	}
 	defer C.H5Sclose(sid)
 
+	if result := C.H5Lexists(f.fid, cname, C.H5P_DEFAULT); result < 0 {
+		return errors.New("cannot check if the name already exists")
+	} else if result > 0 && C.H5Ldelete(f.fid, cname, C.H5P_DEFAULT) < 0 {
+		return errors.New("cannot overwrite an existing dataset")
+	}
+
 	did := C.H5Dcreate2(f.fid, cname, object.tid, sid, C.H5P_DEFAULT, C.H5P_DEFAULT, C.H5P_DEFAULT)
 	if did < 0 {
 		return errors.New("cannot create a dataset")
