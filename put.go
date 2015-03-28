@@ -132,10 +132,6 @@ func createStruct(value reflect.Value) (*object, error) {
 	}
 	object.flag |= flagOwnedMemory
 
-	pointer := reflect.New(typo)
-	reflect.Indirect(pointer).Set(value)
-	C.memcpy(object.data, unsafe.Pointer(pointer.Pointer()), size)
-
 	object.tid = C.H5Tcreate(C.H5T_COMPOUND, size)
 	if object.tid < 0 {
 		object.free()
@@ -154,27 +150,29 @@ func createStruct(value reflect.Value) (*object, error) {
 		}
 		object.deps = append(object.deps, o)
 
-		tid := o.tid
-		offset := C.size_t(field.Offset)
+		address := unsafe.Pointer(uintptr(object.data) + uintptr(field.Offset))
 
 		if o.flag&flagVariableLength != 0 {
-			tid = C.H5Tvlen_create(tid)
+			tid := C.H5Tvlen_create(o.tid)
 			if tid < 0 {
 				object.free()
 				return nil, errors.New("cannnot create a variable-length datatype")
 			}
 
-			h := (*C.hvl_t)(unsafe.Pointer(uintptr(object.data) + uintptr(offset)))
+			// NOTE: It is assumed here that sizeof(hvl_t) <= v.Type().Size().
+			h := (*C.hvl_t)(address)
 			h.len, h.p = 1, o.data
 
 			o = object.new()
 			o.tid = tid
+		} else {
+			C.memcpy(address, o.data, C.size_t(value.Field(i).Type().Size()))
 		}
 
 		cname := C.CString(field.Name)
 		defer C.free(unsafe.Pointer(cname))
 
-		if C.H5Tinsert(object.tid, cname, offset, tid) < 0 {
+		if C.H5Tinsert(object.tid, cname, C.size_t(field.Offset), o.tid) < 0 {
 			object.free()
 			return nil, errors.New("cannot construct a compound datatype")
 		}

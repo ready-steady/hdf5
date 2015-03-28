@@ -8,6 +8,17 @@ const (
 	fixturePath = "fixtures"
 )
 
+type dummy1 struct {
+	A uint
+	B []uint
+	C dummy2
+}
+
+type dummy2 struct {
+	D uint
+	E []uint
+}
+
 func findFixture(name string) string {
 	return path.Join(fixturePath, name)
 }
@@ -49,11 +60,12 @@ var fixtureObjects = []interface{}{
 	float64(12),
 	[]float64{12, 12, 12},
 
-	struct {
-		A []float64
-		B []float64
-	}{
-		[]float64{1, 2, 3},
-		[]float64{4, 5, 6},
+	dummy1{
+		A: 1,
+		B: []uint{2, 3},
+		C: dummy2{
+			D: 4,
+			E: []uint{5, 6},
+		},
 	},
 }
