@@ -13,11 +13,12 @@ import (
 
 // Put writes an object into the file.
 func (f *File) Put(name string, something interface{}, dimensions ...uint) error {
-	object, err := createObject(reflect.ValueOf(something), dimensions...)
-	if err != nil {
+	object := newObject()
+	defer object.free()
+
+	if err := initializeToPut(object, reflect.ValueOf(something), dimensions...); err != nil {
 		return err
 	}
-	defer object.free()
 
 	cname := C.CString(name)
 	defer C.free(unsafe.Pointer(cname))
@@ -42,20 +43,18 @@ func (f *File) Put(name string, something interface{}, dimensions ...uint) error
 	return nil
 }
 
-func createObject(value reflect.Value, dimensions ...uint) (*object, error) {
+func initializeToPut(object *object, value reflect.Value, dimensions ...uint) error {
 	switch value.Kind() {
 	case reflect.Slice:
-		return createSlice(value, dimensions...)
+		return initializeSliceToPut(object, value, dimensions...)
 	case reflect.Struct:
-		return createStruct(value)
+		return initializeStructToPut(object, value)
 	default:
-		return createScalar(value)
+		return initializeScalarToPut(object, value)
 	}
 }
 
-func createScalar(value reflect.Value) (*object, error) {
-	object := newObject()
-
+func initializeScalarToPut(object *object, value reflect.Value) error {
 	pointer := reflect.New(value.Type())
 	reflect.Indirect(pointer).Set(value)
 
@@ -63,29 +62,25 @@ func createScalar(value reflect.Value) (*object, error) {
 
 	bid, ok := kindTypeMapping[value.Kind()]
 	if !ok {
-		object.free()
-		return nil, errors.New("encountered an unsupported datatype")
+		return errors.New("encountered an unsupported datatype")
 	}
 
 	one := C.hsize_t(1)
 	object.tid = C.H5Tarray_create2(bid, 1, (*C.hsize_t)(unsafe.Pointer(&one)))
 	if object.tid < 0 {
-		object.free()
-		return nil, errors.New("cannot create an array datatype")
+		return errors.New("cannot create an array datatype")
 	}
 
-	return object, nil
+	return nil
 }
 
-func createSlice(value reflect.Value, dimensions ...uint) (*object, error) {
-	object := newObject()
-
+func initializeSliceToPut(object *object, value reflect.Value, dimensions ...uint) error {
 	object.data = unsafe.Pointer(value.Pointer())
 	object.flag |= flagVariableLength
 
 	bid, ok := kindTypeMapping[value.Type().Elem().Kind()]
 	if !ok {
-		return nil, errors.New("encountered an unsupported datatype")
+		return errors.New("encountered an unsupported datatype")
 	}
 
 	nd := len(dimensions)
@@ -99,8 +94,7 @@ func createSlice(value reflect.Value, dimensions ...uint) (*object, error) {
 		length *= dimensions[i]
 	}
 	if length != uint(value.Len()) {
-		object.free()
-		return nil, errors.New("the dimensions do not match")
+		return errors.New("the dimensions do not match")
 	}
 
 	// NOTE: The C version of HDF5 adheres to the row-major order. This
@@ -113,29 +107,25 @@ func createSlice(value reflect.Value, dimensions ...uint) (*object, error) {
 
 	object.tid = C.H5Tarray_create2(bid, C.uint(nd), (*C.hsize_t)(unsafe.Pointer(&dimensions[0])))
 	if object.tid < 0 {
-		object.free()
-		return nil, errors.New("cannot create an array datatype")
+		return errors.New("cannot create an array datatype")
 	}
 
-	return object, nil
+	return nil
 }
 
-func createStruct(value reflect.Value) (*object, error) {
-	object := newObject()
-
+func initializeStructToPut(object *object, value reflect.Value) error {
 	typo := value.Type()
 	size := C.size_t(typo.Size())
 
 	object.data = C.malloc(size)
 	if object.data == nil {
-		return nil, errors.New("cannot allocate memory")
+		return errors.New("cannot allocate memory")
 	}
 	object.flag |= flagOwnedMemory
 
 	object.tid = C.H5Tcreate(C.H5T_COMPOUND, size)
 	if object.tid < 0 {
-		object.free()
-		return nil, errors.New("cannot create a compound datatype")
+		return errors.New("cannot create a compound datatype")
 	}
 
 	count := typo.NumField()
@@ -143,20 +133,17 @@ func createStruct(value reflect.Value) (*object, error) {
 	for i := 0; i < count; i++ {
 		field := typo.Field(i)
 
-		o, err := createObject(value.Field(i))
-		if err != nil {
-			object.free()
-			return nil, err
+		o := object.new()
+		if err := initializeToPut(o, value.Field(i)); err != nil {
+			return err
 		}
-		object.deps = append(object.deps, o)
 
 		address := unsafe.Pointer(uintptr(object.data) + uintptr(field.Offset))
 
 		if o.flag&flagVariableLength != 0 {
 			tid := C.H5Tvlen_create(o.tid)
 			if tid < 0 {
-				object.free()
-				return nil, errors.New("cannnot create a variable-length datatype")
+				return errors.New("cannnot create a variable-length datatype")
 			}
 
 			// NOTE: It is assumed here that sizeof(hvl_t) <= v.Type().Size().
@@ -173,10 +160,9 @@ func createStruct(value reflect.Value) (*object, error) {
 		defer C.free(unsafe.Pointer(cname))
 
 		if C.H5Tinsert(object.tid, cname, C.size_t(field.Offset), o.tid) < 0 {
-			object.free()
-			return nil, errors.New("cannot construct a compound datatype")
+			return errors.New("cannot construct a compound datatype")
 		}
 	}
 
-	return object, nil
+	return nil
 }
