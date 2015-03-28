@@ -202,6 +202,10 @@ func finalizeStructToGet(object *object, value reflect.Value) error {
 		}
 
 		C.memcpy(o.data, address, size)
+
+		if err := finalizeToGet(o, value.Field(i)); err != nil {
+			return err
+		}
 	}
 
 	return nil
