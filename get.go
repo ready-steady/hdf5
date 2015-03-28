@@ -45,7 +45,7 @@ func (f *File) Get(name string, something interface{}) error {
 		return errors.New("cannot read the dataset from the file")
 	}
 
-	if err := finalizeObjectToGet(object, value); err != nil {
+	if err := finalizeToGet(object, value); err != nil {
 		return err
 	}
 
@@ -63,7 +63,7 @@ func initializeToGet(object *object, value reflect.Value) error {
 	}
 }
 
-func finalizeObjectToGet(object *object, value reflect.Value) error {
+func finalizeToGet(object *object, value reflect.Value) error {
 	switch value.Kind() {
 	case reflect.Struct:
 		return finalizeStructToGet(object, value)
