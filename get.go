@@ -191,17 +191,17 @@ func finalizeStructToGet(object *object, value reflect.Value) error {
 		}
 
 		offset := C.H5Tget_member_offset(object.tid, C.uint(j))
+		address := unsafe.Pointer(uintptr(object.data) + uintptr(offset))
 
-		address := uintptr(object.data) + uintptr(offset)
 		if o.flag&flagVariableLength != 0 {
-			h := (*C.hvl_t)(unsafe.Pointer(address))
+			h := (*C.hvl_t)(address)
 			if h.len != 1 {
 				return errors.New("expected a variable-length datatype with a single element")
 			}
-			address = uintptr(h.p)
+			address = h.p
 		}
 
-		C.memcpy(o.data, unsafe.Pointer(address), size)
+		C.memcpy(o.data, address, size)
 	}
 
 	return nil
