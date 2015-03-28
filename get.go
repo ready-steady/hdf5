@@ -37,7 +37,7 @@ func (f *File) Get(name string, something interface{}) error {
 		return errors.New("cannot get the datatype of the dataset")
 	}
 
-	if err := initializeObject(object, value); err != nil {
+	if err := initializeToGet(object, value); err != nil {
 		return err
 	}
 
@@ -45,34 +45,34 @@ func (f *File) Get(name string, something interface{}) error {
 		return errors.New("cannot read the dataset from the file")
 	}
 
-	if err := finalizeObject(object, value); err != nil {
+	if err := finalizeObjectToGet(object, value); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func initializeObject(object *object, value reflect.Value) error {
+func initializeToGet(object *object, value reflect.Value) error {
 	switch value.Kind() {
 	case reflect.Slice:
-		return initializeSlice(object, value)
+		return initializeSliceToGet(object, value)
 	case reflect.Struct:
-		return initializeStruct(object, value)
+		return initializeStructToGet(object, value)
 	default:
-		return initializeScalar(object, value)
+		return initializeScalarToGet(object, value)
 	}
 }
 
-func finalizeObject(object *object, value reflect.Value) error {
+func finalizeObjectToGet(object *object, value reflect.Value) error {
 	switch value.Kind() {
 	case reflect.Struct:
-		return finalizeStruct(object, value)
+		return finalizeStructToGet(object, value)
 	default:
 		return nil
 	}
 }
 
-func initializeScalar(object *object, value reflect.Value) error {
+func initializeScalarToGet(object *object, value reflect.Value) error {
 	bid, ok := kindTypeMapping[value.Kind()]
 	if !ok {
 		return errors.New("encountered an unsupported datatype")
@@ -82,7 +82,7 @@ func initializeScalar(object *object, value reflect.Value) error {
 		return err
 	}
 
-	if length, err := getArrayLength(object.tid); err != nil {
+	if length, err := computeArrayLength(object.tid); err != nil {
 		return err
 	} else if length != 1 {
 		return errors.New("expected an array with a single element")
@@ -93,7 +93,7 @@ func initializeScalar(object *object, value reflect.Value) error {
 	return nil
 }
 
-func initializeSlice(object *object, value reflect.Value) error {
+func initializeSliceToGet(object *object, value reflect.Value) error {
 	typo := value.Type()
 
 	bid, ok := kindTypeMapping[typo.Elem().Kind()]
@@ -105,7 +105,7 @@ func initializeSlice(object *object, value reflect.Value) error {
 		return err
 	}
 
-	length, err := getArrayLength(object.tid)
+	length, err := computeArrayLength(object.tid)
 	if err != nil {
 		return err
 	}
@@ -127,7 +127,7 @@ func initializeSlice(object *object, value reflect.Value) error {
 	return nil
 }
 
-func initializeStruct(object *object, value reflect.Value) error {
+func initializeStructToGet(object *object, value reflect.Value) error {
 	if tid := C.H5Tget_class(object.tid); tid < 0 {
 		return errors.New("cannot get a data class")
 	} else if tid != C.H5T_COMPOUND {
@@ -148,7 +148,7 @@ func initializeStruct(object *object, value reflect.Value) error {
 	return nil
 }
 
-func finalizeStruct(object *object, value reflect.Value) error {
+func finalizeStructToGet(object *object, value reflect.Value) error {
 	typo := value.Type()
 	count := typo.NumField()
 
@@ -181,7 +181,7 @@ func finalizeStruct(object *object, value reflect.Value) error {
 			}
 		}
 
-		if err := initializeObject(o, value.Field(i)); err != nil {
+		if err := initializeToGet(o, value.Field(i)); err != nil {
 			return err
 		}
 
@@ -223,7 +223,7 @@ func checkArrayType(tid C.hid_t, bid C.hid_t) error {
 	return nil
 }
 
-func getArrayLength(tid C.hid_t) (C.hsize_t, error) {
+func computeArrayLength(tid C.hid_t) (C.hsize_t, error) {
 	nd := C.H5Tget_array_ndims(tid)
 	if nd < 0 {
 		return 0, errors.New("cannot get the dimensionality of an array")
