@@ -9,8 +9,8 @@ import (
 )
 
 const (
-	flagReference = 1 << iota
-	flagOwned
+	flagVariableLength = 1 << iota
+	flagOwnedMemory
 )
 
 type object struct {
@@ -39,7 +39,7 @@ func (o *object) free() {
 	if o.tid >= 0 {
 		C.H5Tclose(o.tid)
 	}
-	if o.data != nil && o.flag&flagOwned != 0 {
+	if o.data != nil && o.flag&flagOwnedMemory != 0 {
 		C.free(o.data)
 	}
 }

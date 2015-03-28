@@ -122,7 +122,7 @@ func initializeSlice(object *object, value reflect.Value) error {
 	dst.Len, src.Len = src.Len, dst.Len
 
 	object.data = unsafe.Pointer(dst.Data)
-	object.flag |= flagReference
+	object.flag |= flagVariableLength
 
 	return nil
 }
@@ -143,7 +143,7 @@ func initializeStruct(object *object, value reflect.Value) error {
 	if object.data == nil {
 		return errors.New("cannot allocate memory")
 	}
-	object.flag |= flagOwned
+	object.flag |= flagOwnedMemory
 
 	return nil
 }
@@ -179,7 +179,6 @@ func finalizeStruct(object *object, value reflect.Value) error {
 				o = object.new()
 				o.tid = tid
 			}
-			o.flag |= flagReference
 		}
 
 		if err := initializeObject(o, value.Field(i)); err != nil {
@@ -194,7 +193,7 @@ func finalizeStruct(object *object, value reflect.Value) error {
 		offset := C.H5Tget_member_offset(object.tid, C.uint(j))
 
 		address := uintptr(object.data) + uintptr(offset)
-		if o.flag&flagReference != 0 {
+		if o.flag&flagVariableLength != 0 {
 			h := (*C.hvl_t)(unsafe.Pointer(address))
 			if h.len != 1 {
 				return errors.New("expected a variable-length datatype with a single element")

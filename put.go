@@ -81,7 +81,7 @@ func createSlice(value reflect.Value, dimensions ...uint) (*object, error) {
 	object := newObject()
 
 	object.data = unsafe.Pointer(value.Pointer())
-	object.flag |= flagReference
+	object.flag |= flagVariableLength
 
 	bid, ok := kindTypeMapping[value.Type().Elem().Kind()]
 	if !ok {
@@ -130,7 +130,7 @@ func createStruct(value reflect.Value) (*object, error) {
 	if object.data == nil {
 		return nil, errors.New("cannot allocate memory")
 	}
-	object.flag |= flagOwned
+	object.flag |= flagOwnedMemory
 
 	pointer := reflect.New(typo)
 	reflect.Indirect(pointer).Set(value)
@@ -157,7 +157,7 @@ func createStruct(value reflect.Value) (*object, error) {
 		tid := o.tid
 		offset := C.size_t(field.Offset)
 
-		if o.flag&flagReference != 0 {
+		if o.flag&flagVariableLength != 0 {
 			tid = C.H5Tvlen_create(tid)
 			if tid < 0 {
 				object.free()
