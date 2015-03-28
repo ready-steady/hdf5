@@ -18,7 +18,7 @@ func (f *File) Get(name string, something interface{}) error {
 		return errors.New("expected a pointer")
 	}
 
-	ivalue := reflect.Indirect(value)
+	value = reflect.Indirect(value)
 
 	cname := C.CString(name)
 	defer C.free(unsafe.Pointer(cname))
@@ -37,7 +37,7 @@ func (f *File) Get(name string, something interface{}) error {
 		return errors.New("cannot get the datatype of the dataset")
 	}
 
-	if err := initializeObject(object, ivalue); err != nil {
+	if err := initializeObject(object, value); err != nil {
 		return err
 	}
 
@@ -45,7 +45,7 @@ func (f *File) Get(name string, something interface{}) error {
 		return errors.New("cannot read the dataset from the file")
 	}
 
-	if err := finalizeObject(object, ivalue); err != nil {
+	if err := finalizeObject(object, value); err != nil {
 		return err
 	}
 
