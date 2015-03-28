@@ -165,6 +165,9 @@ func finalizeStructToGet(object *object, value reflect.Value) error {
 
 	for i := 0; i < count; i++ {
 		field := typo.Field(i)
+		if len(field.PkgPath) > 0 {
+			continue
+		}
 
 		cname := C.CString(field.Name)
 		defer C.free(unsafe.Pointer(cname))

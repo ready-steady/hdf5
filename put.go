@@ -132,6 +132,9 @@ func initializeStructToPut(object *object, value reflect.Value) error {
 
 	for i := 0; i < count; i++ {
 		field := typo.Field(i)
+		if len(field.PkgPath) > 0 {
+			continue
+		}
 
 		o := object.new()
 		if err := initializeToPut(o, value.Field(i)); err != nil {
