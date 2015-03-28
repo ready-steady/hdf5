@@ -41,12 +41,23 @@ func (f *File) Get(name string, something interface{}) error {
 		return err
 	}
 
-	if C.H5Dread(did, object.tid, C.H5S_ALL, C.H5S_ALL, C.H5P_DEFAULT, object.data) != 0 {
+	if C.H5Dread(did, object.tid, C.H5S_ALL, C.H5S_ALL, C.H5P_DEFAULT, object.data) < 0 {
 		return errors.New("cannot read the dataset from the file")
 	}
 
 	if err := finalizeToGet(object, value); err != nil {
 		return err
+	}
+
+	one := C.hsize_t(1)
+	sid := C.H5Screate_simple(1, (*C.hsize_t)(unsafe.Pointer(&one)), nil)
+	if sid < 0 {
+		return errors.New("cannot create a data space")
+	}
+	defer C.H5Sclose(sid)
+
+	if C.H5Dvlen_reclaim(object.tid, sid, C.H5P_DEFAULT, object.data) < 0 {
+		return errors.New("cannot reclaim memory")
 	}
 
 	return nil

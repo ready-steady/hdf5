@@ -36,7 +36,7 @@ func (f *File) Put(name string, something interface{}, dimensions ...uint) error
 	}
 	defer C.H5Dclose(did)
 
-	if C.H5Dwrite(did, object.tid, C.H5S_ALL, C.H5S_ALL, C.H5P_DEFAULT, object.data) != 0 {
+	if C.H5Dwrite(did, object.tid, C.H5S_ALL, C.H5S_ALL, C.H5P_DEFAULT, object.data) < 0 {
 		return errors.New("cannot write the dataset into the file")
 	}
 
