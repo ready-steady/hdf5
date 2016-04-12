@@ -2,7 +2,7 @@ root := $(shell pwd)
 source := $(root)/source
 target := $(root)/target
 
-alibrary := libhdf5.a
+clibrary := libhdf5.a
 glibrary := main.syso
 
 all: $(glibrary)
@@ -10,12 +10,12 @@ all: $(glibrary)
 install: $(glibrary)
 	go install
 
-$(glibrary): $(target)/lib/$(alibrary)
+$(glibrary): $(target)/lib/$(clibrary)
 	mkdir -p $(target)/$@
 	cd $(target)/$@ && ar x $<
 	ld -r -o $@ $(target)/$@/*.o
 
-$(target)/lib/$(alibrary): $(source)/config.log
+$(target)/lib/$(clibrary): $(source)/config.log
 	$(MAKE) -C $(source) install
 
 $(source)/config.log: $(source)/configure
