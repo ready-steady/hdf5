@@ -215,7 +215,7 @@ func finalizeStructToGet(object *object, value reflect.Value) error {
 			address = h.p
 		}
 
-		C.memcpy(o.data, address, size)
+		copyMemory(uintptr(o.data), uintptr(address), int(size))
 
 		if err := finalizeToGet(o, value.Field(i)); err != nil {
 			return err
@@ -258,4 +258,18 @@ func computeArrayLength(tid C.hid_t) (C.hsize_t, error) {
 	}
 
 	return length, nil
+}
+
+func copyMemory(into, from uintptr, size int) {
+	intoHeader := reflect.SliceHeader{
+		Data: into,
+		Len:  size,
+		Cap:  size,
+	}
+	fromHeader := reflect.SliceHeader{
+		Data: from,
+		Len:  size,
+		Cap:  size,
+	}
+	copy(*(*[]byte)(unsafe.Pointer(&intoHeader)), *(*[]byte)(unsafe.Pointer(&fromHeader)))
 }
