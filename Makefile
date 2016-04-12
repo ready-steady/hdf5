@@ -1,30 +1,31 @@
 root := $(shell pwd)
-build := $(root)/hdf5
-install := $(build)/install
+source := $(root)/source
+target := $(root)/target
 
-syso := main.syso
+alibrary := libhdf5.a
+glibrary := main.syso
 
-all: $(syso)
+all: $(glibrary)
 
-install: $(syso)
+install: $(glibrary)
 	go install
 
-$(syso): $(install)/lib/libhdf5.a
-	mkdir -p $(build)/$@
-	cd $(build)/$@ && ar x $(install)/lib/libhdf5.a
-	ld -r -o $@ $(build)/$@/*.o
+$(glibrary): $(target)/lib/$(alibrary)
+	mkdir -p $(target)/$@
+	cd $(target)/$@ && ar x $<
+	ld -r -o $@ $(target)/$@/*.o
 
-$(install)/lib/libhdf5.a: $(build)/config.log
-	$(MAKE) -C $(build) install
+$(target)/lib/$(alibrary): $(source)/config.log
+	$(MAKE) -C $(source) install
 
-$(build)/config.log: $(build)/configure
-	cd $(build) && ./configure --prefix=$(install)
+$(source)/config.log: $(source)/configure
+	cd $(source) && ./configure --prefix=$(target)
 
-$(build)/configure:
+$(source)/configure:
 	git submodule update --init
 
 clean:
-	rm -rf $(syso)
-	cd $(build) && (git checkout . && git clean -df)
+	rm -rf $(target) $(glibrary)
+	cd $(source) && (git checkout . && git clean -df)
 
 .PHONY: all install clean

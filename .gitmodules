@@ -1,3 +1,3 @@
 [submodule "hdf5"]
-	path = hdf5
+	path = source
 	url = https://github.com/copies/hdf5.git
