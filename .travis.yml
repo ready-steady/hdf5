@@ -1,6 +1,10 @@
 language: go
 sudo: false
 
+os:
+  - linux
+  - osx
+
 install:
   - go get -d -t ./...
   - make install
