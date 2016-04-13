@@ -11,7 +11,9 @@ install: $(glibrary)
 	go install
 
 $(glibrary): $(target)/lib/$(clibrary)
-	$(CC) -shared -lz -Wl,-all_load $< -o $@
+	mkdir -p $(target)/$@
+	cd $(target)/$@ && ar x $<
+	ld -r -o $@ $(target)/$@/*.o
 
 $(target)/lib/$(clibrary): $(source)/config.log
 	$(MAKE) -C $(source) install
