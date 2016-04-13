@@ -2,13 +2,7 @@ root := $(shell pwd)
 source := $(root)/source
 target := $(root)/target
 
-ifeq ($(shell uname -s),Darwin)
-extension := dylib
-else
-extension := so
-endif
-
-clibrary := libhdf5.$(extension)
+clibrary := libhdf5.a
 glibrary := main.syso
 
 all: $(glibrary)
@@ -17,7 +11,7 @@ install: $(glibrary)
 	go install
 
 $(glibrary): $(target)/lib/$(clibrary)
-	cp $< $@
+	$(CC) -shared -lz -Wl,-all_load $< -o $@
 
 $(target)/lib/$(clibrary): $(source)/config.log
 	$(MAKE) -C $(source) install
