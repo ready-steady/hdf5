@@ -11,9 +11,9 @@ install: $(glibrary)
 	go install
 
 $(glibrary): $(target)/lib/$(clibrary)
-	mkdir -p $(target)/$@
-	cd $(target)/$@ && ar x $<
-	ld -r -o $@ $(target)/$@/*.o
+	mkdir -p $(target)/objects
+	cd $(target)/objects && ar x $<
+	ld -r -o $@ $(target)/objects/*.o
 
 $(target)/lib/$(clibrary): $(source)/config.log
 	$(MAKE) -C $(source) install
